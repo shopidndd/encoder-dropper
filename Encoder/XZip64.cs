@@ -4,27 +4,35 @@ using System.IO.Compression;
 
 namespace Encoder
 {
+    /// <summary>
+    /// Provides compression and encryption functionality for binary data
+    /// </summary> 
     class XZip64
     {
         public static string Encode(byte[] payload, string key)
         {
-            string encoded = null; byte[] buffer = new byte[4096]; int bytes = 0; MemoryStream input = new MemoryStream(Shuffle(payload, key)), output = new MemoryStream(); GZipStream gzip = new GZipStream(output, CompressionMode.Compress);
-            try
+            if (payload == null || payload.Length == 0) throw new ArgumentNullException("payload");
+            if (string.IsNullOrEmpty(key)) throw new ArgumentNullException("key");
+
+            string encoded = null;
+            using (var input = new MemoryStream(Shuffle(payload, key)))
+            using (var output = new MemoryStream())
+            using (var gzip = new GZipStream(output, CompressionMode.Compress))
             {
-                while ((bytes = input.Read(buffer, 0, buffer.Length)) > 0)
-                {
-                    gzip.Write(buffer, 0, bytes);
+                try {
+                    byte[] buffer = new byte[4096];
+                    int bytes;
+                    while ((bytes = input.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        gzip.Write(buffer, 0, bytes);
+                    }
+                    gzip.Close();
+                    encoded = Convert.ToBase64String(output.ToArray());
+                    Array.Clear(buffer, 0, buffer.Length);
                 }
-                gzip.Close();
-                encoded = Convert.ToBase64String(output.ToArray());
-            }
-            catch (Exception) { }
-            finally
-            {
-                Array.Clear(buffer, 0, buffer.Length);
-                input.Position = 0; input.SetLength(0); input.Close(); input.Dispose();
-                output.Position = 0; output.SetLength(0); output.Close(); output.Dispose();
-                gzip.Close(); gzip.Dispose();
+                catch (Exception ex) {
+                    throw new Exception("Failed to encode data", ex);
+                }
             }
             return encoded;
         }
